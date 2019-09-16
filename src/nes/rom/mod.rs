@@ -12,6 +12,7 @@
 pub trait Rom {
     fn new(data: &Vec<u8>) -> Self;
     fn get_header(&self) -> &Header;
+    fn get_rom_data(&self) -> &Vec<u8>;
 //    fn get_trainer(&self) -> Vec<u16>;
 //    fn get_prg_rom_data(&self) -> Vec<u16>;
 //    fn get_chr_rom_data(&self) -> Vec<u8>;
@@ -72,18 +73,23 @@ impl Header {
 
 pub struct RomV1 {
     header: Header,
-
+    data: Vec<u8>
 }
 
 
 impl Rom for RomV1 {
     fn new(data: &Vec<u8>) -> RomV1 {
         RomV1 {
-            header: Header::new(&data[0..11])
+            header: Header::new(&data[0..11]),
+            data: data[16..].to_vec()
         }
     }
 
     fn get_header(&self) -> &Header {
         &self.header
+    }
+
+    fn get_rom_data(&self) -> &Vec<u8> {
+        &self.data
     }
 }
