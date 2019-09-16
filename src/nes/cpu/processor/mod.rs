@@ -70,14 +70,94 @@ impl Processor {
             AC: 0x00,
             X: 0x00,
             Y: 0x00,
-            SR: 0x00,
+            SR: 0x30,
             SP: 0xFF, //top down stack pointer from 0x0100 - 0x01FF
             ram: memory
         }
     }
 
-    pub fn execute_next_instruction(&self) {
-        let instruction = self.ram.get_instruction(self.PC as usize);
-        println!("inst1 :: {:#x?}",instruction);
+    pub fn execute_next_instruction(&mut self) {
+        let nibble = self.ram.get_instruction(self.PC as usize);
+        self.PC += 1;
+        println!("inst1 :: {:#04X?}",nibble);
+        let low_nibble = self.ram.get_instruction(self.PC as usize);
+        self.PC += 1;
+
+        match nibble & 0xF0 {
+            0x00 => {
+            },
+            0x10 => {
+            },
+            0x20 => {
+            },
+            0x30 => {
+            },
+            0x40 => {
+            },
+            0x50 => {
+            },
+            0x60 => {
+            },
+            0x70 => {
+            },
+            0x80 => {
+            },
+            0x90 => {
+            },
+            0xA0 => {
+                match nibble & 0x0F {
+                    0x00 => {
+                    },
+                    0x01 => {
+                    },
+                    0x02 => {
+                    },
+                    0x03 => {
+                    },
+                    0x04 => {
+                    },
+                    0x05 => {
+                    },
+                    0x06 => {
+                    },
+                    0x07 => {
+                    },
+                    0x08 => {
+                    },
+                    0x09 => {
+
+                    },
+                    0x0A => {
+                    },
+                    0x0B => {
+                    },
+                    0x0C => {
+                    },
+                    0x0D => {
+                    },
+                    0x0E => {
+                    },
+                    0x0F => {
+                    },
+                    _ => {
+                    },
+
+
+                }
+            },
+            0xB0 => {
+            },
+            0xC0 => {
+            },
+            0xD0 => {
+            },
+            0xE0 => {
+            },
+            0xF0 => {
+            },
+            _ => {
+            }
+        }
+
     }
 }

@@ -20,7 +20,6 @@ impl Memory {
 
     pub fn load(&mut self, data: &Vec<u8>, from: usize) {
         let mut pos = from;
-        println!("size: {}",data.len());
         for byte in data.iter() {
             self.data[pos] = *byte;
             pos += 1;

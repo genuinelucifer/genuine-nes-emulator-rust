@@ -23,7 +23,7 @@ fn start() {
                     println!("loading game {:?} {:?}", line, &roms_with_idx[line-1].1.path().to_str().unwrap());
                     let rom_data = nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap());
                     let rom: nes::rom::RomV1 = nes::rom::Rom::new(&rom_data.unwrap());
-                    let processor = nes::cpu::processor::Processor::new(rom.get_rom_data());
+                    let mut processor = nes::cpu::processor::Processor::new(rom.get_rom_data());
                     processor.execute_next_instruction();
                     nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap()).unwrap().iter().for_each(|x|
                         print!("{:#x?}, ",x)
