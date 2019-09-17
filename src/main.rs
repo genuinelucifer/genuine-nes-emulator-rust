@@ -24,8 +24,16 @@ fn start() {
                     let rom_data = nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap());
                     let rom: nes::rom::RomV1 = nes::rom::Rom::new(&rom_data.unwrap());
                     let mut processor = nes::cpu::processor::Processor::new(rom.get_rom_data());
-                    processor.execute_next_instruction();
-                    processor.execute_next_instruction();
+                    let mut i = 0;
+                    loop {
+                        processor.execute_next_instruction();
+                        i += 1;
+                        // only for testing
+                        // TODO :: remove this break
+                        if i > 20 {
+                            break;
+                        }
+                    }
                     nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap()).unwrap().iter().for_each(|x|
                         print!("{:#04X?}, ",x)
                     );

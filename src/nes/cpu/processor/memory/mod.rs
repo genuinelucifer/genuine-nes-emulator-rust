@@ -26,6 +26,10 @@ impl Memory {
         }
     }
 
+    pub fn set_address(&mut self, data: u8, at: usize) {
+        self.data[at] = data;
+    }
+
     pub fn get_instruction(&self, idx: usize) -> u8 {
         self.data[idx]
     }

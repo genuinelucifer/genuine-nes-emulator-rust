@@ -30,6 +30,8 @@
 //Signed values are two's complement, sign in bit 7 (most significant bit).
 //(%11111111 = $FF = -1, %10000000 = $80 = -128, %01111111 = $7F = +127)
 
+// refer http://www.atarihq.com/danb/files/64doc.txt for cycle
+
 pub mod memory;
 
 #[allow(non_snake_case)]
@@ -40,11 +42,11 @@ pub struct Processor {
     Y: u8,
     SR: u8,
     SP: u8,
-    //stack: [u8; 0xFF] // ?
     ram: memory::Memory,
     new_instruction: bool,
     current_instruction: u8,
-    cycle: usize
+    cycle: usize,
+    arg: u16 // useful in 3bytes opcodes
 }
 
 #[allow(non_camel_case_types)]
@@ -78,7 +80,8 @@ impl Processor {
             ram: memory,
             new_instruction: true,
             current_instruction: 0x00,
-            cycle: 0x00
+            cycle: 0x00,
+            arg: 0x00
         }
     }
 
@@ -89,7 +92,7 @@ impl Processor {
             self.current_instruction
         };
 
-        println!("inst1 :: {:#04X?}",nibble);
+        println!("inst1 :: {:#04X?} {} {:#04X} {} {}",nibble, self.new_instruction, self.current_instruction, self.cycle, self.arg);
 
         match nibble & 0xF0 {
             0x00 => {
@@ -112,6 +115,34 @@ impl Processor {
                 match nibble & 0x0F {
                     0x0D => {
                         //STA absolute, 4 cycle
+                        match self.cycle {
+                            0x00 => {
+                                //read opcode
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                            },
+                            0x01 => {
+                                //read operand
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x02 => {
+                                self.arg = self.arg << 8 | self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x03 => {
+                                self.ram.set_address(self.AC, self.arg as usize);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {
+
+                            }
+                        }
                     },
                     _ => {
                     }
@@ -143,6 +174,7 @@ impl Processor {
                         // LDA #$x immediate, 2 cycle
                         match self.cycle {
                             0x00 => {
+                                //read opcode
                                 self.PC += 1;
                                 self.cycle += 1;
                                 self.new_instruction = false;
@@ -151,11 +183,13 @@ impl Processor {
                                 println!("acc: {}", self.AC);
                             },
                             0x01 => {
+                                //read immediate value and load into AC
                                 self.AC = self.ram.get_instruction(self.PC as usize);
                                 self.PC += 1;
                                 self.SR |= self.AC & 0x80; //check 7th bit for negative result
                                 self.SR |= if self.AC == 0x0 {0x2} else {0x0};
                                 self.new_instruction = true;
+                                self.cycle = 0;
                                 println!("flags after 2 cycle: {:#08X}", self.SR);
                                 println!("acc: {}", self.AC);
                             },
