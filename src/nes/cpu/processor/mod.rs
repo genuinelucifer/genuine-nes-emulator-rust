@@ -41,7 +41,10 @@ pub struct Processor {
     SR: u8,
     SP: u8,
     //stack: [u8; 0xFF] // ?
-    ram: memory::Memory
+    ram: memory::Memory,
+    new_instruction: bool,
+    current_instruction: u8,
+    cycle: usize
 }
 
 #[allow(non_camel_case_types)]
@@ -72,16 +75,21 @@ impl Processor {
             Y: 0x00,
             SR: 0x30,
             SP: 0xFF, //top down stack pointer from 0x0100 - 0x01FF
-            ram: memory
+            ram: memory,
+            new_instruction: true,
+            current_instruction: 0x00,
+            cycle: 0x00
         }
     }
 
     pub fn execute_next_instruction(&mut self) {
-        let nibble = self.ram.get_instruction(self.PC as usize);
-        self.PC += 1;
+        let nibble = if self.new_instruction {
+            self.ram.get_instruction(self.PC as usize)
+        } else {
+            self.current_instruction
+        };
+
         println!("inst1 :: {:#04X?}",nibble);
-        let low_nibble = self.ram.get_instruction(self.PC as usize);
-        self.PC += 1;
 
         match nibble & 0xF0 {
             0x00 => {
@@ -101,6 +109,13 @@ impl Processor {
             0x70 => {
             },
             0x80 => {
+                match nibble & 0x0F {
+                    0x0D => {
+                        //STA absolute, 4 cycle
+                    },
+                    _ => {
+                    }
+                }
             },
             0x90 => {
             },
@@ -125,7 +140,29 @@ impl Processor {
                     0x08 => {
                     },
                     0x09 => {
-
+                        // LDA #$x immediate, 2 cycle
+                        match self.cycle {
+                            0x00 => {
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                println!("flags after 1 cycle: {:#08X}", self.SR);
+                                println!("acc: {}", self.AC);
+                            },
+                            0x01 => {
+                                self.AC = self.ram.get_instruction(self.PC as usize);
+                                self.PC += 1;
+                                self.SR |= self.AC & 0x80; //check 7th bit for negative result
+                                self.SR |= if self.AC == 0x0 {0x2} else {0x0};
+                                self.new_instruction = true;
+                                println!("flags after 2 cycle: {:#08X}", self.SR);
+                                println!("acc: {}", self.AC);
+                            },
+                            _ => {
+                                //unreachable
+                            }
+                        }
                     },
                     0x0A => {
                     },
