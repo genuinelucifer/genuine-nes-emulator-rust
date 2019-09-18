@@ -213,6 +213,25 @@ impl Processor {
             },
             0x80 => {
                 match nibble & 0x0F {
+                    0x0A => {
+                        // TXA 2 cycle, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.AC = self.X;
+                                self.SR |= self.AC & 0x80;
+                                self.SR |= if self.AC == 0x0 {0x2} else {0x0};
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     0x0D => {
                         //STA absolute, 4 cycle
                         match self.cycle {
