@@ -97,7 +97,52 @@ impl Processor {
         println!("before registers AC: {:#X?}, X: {:#X?}, Y: {:#X?}, SP: {:#X?}, PC: {:?}, SR: {:08b}", self.AC, self.X, self.Y, self.SP, self.PC, self.SR);
 
         match nibble & 0xF0 {
-            0x00 => {},
+            0x00 => {
+                match nibble & 0x0F {
+                    0x00 => {
+                        //BRK 7 cycle, 1byte
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.current_instruction = nibble;
+                                self.new_instruction = false;
+                            },
+                            0x1 => {
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.ram.set_address((self.PC >> 8) as u8, self.SP as usize);
+                                self.SP -= 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.ram.set_address((self.PC & 0xFF) as u8, self.SP as usize);
+                                self.SP -= 1;
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                self.ram.set_address((self.SR | 0x10) as u8, self.SP as usize);
+                                self.SP -= 1;
+                                self.cycle += 1;
+                            },
+                            0x5 => {
+                                self.PC |= ((self.ram.get_instruction(0xFFFE) as u16) << 8) as u16;
+                                self.cycle += 1;
+                            },
+                            0x6 => {
+                                self.PC |= self.ram.get_instruction(0xFFFF) as u16;
+                                self.SR |= 0x10; // set B flag
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    _ => {}
+                }
+            },
             0x10 => {},
             0x20 => {},
             0x30 => {},
@@ -106,6 +151,7 @@ impl Processor {
             0x60 => {
                 match nibble & 0x0F {
                     0x09 => {
+                        // ADC immediate 2 cycle, 2 bytes
                         match self.cycle {
                             0x00 => {
                                 //read opcode
@@ -118,9 +164,9 @@ impl Processor {
                                 let operand = self.ram.get_instruction(self.PC as usize);
                                 self.PC += 1;
                                 let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
-                                println!("sum: {:#b}",sum);
-                                let sum_as_i8 = (sum%(0xff as u16)) as u8;
-                                println!("sumu8: {}", sum_as_i8 as i16);
+                                println!("sum: {}",sum);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+                                println!("sumu8: {}", sum_as_i8);
 
                                 self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
                                 // The overflow flag is set when the sign of the addends is the same and
@@ -128,7 +174,7 @@ impl Processor {
                                 // overflow = <'AC' and 'operant' have the same sign> &
                                 //           <the sign of 'AC' and 'sum' differs> &
                                 //           <extract sign bit>
-                                self.SR |= !((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8; // overflow flag 6th bit
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
                                 self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
                                 self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
                                 self.AC = sum_as_i8;
