@@ -248,7 +248,28 @@ impl Processor {
                     }
                 }
             },
-            0x90 => {},
+            0x90 => {
+                match nibble & 0x0F {
+                    0x0A => {
+                        // TXS 2 cycle, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.SP = self.X;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    _ => {}
+                }
+            },
             0xA0 => {
                 match nibble & 0x0F {
                     0x00 => {},
@@ -348,7 +369,7 @@ impl Processor {
                                 self.current_instruction = nibble;
                             },
                             0x01 => {
-                                self.X += 1;
+                                self.X = ((self.X as u16 + 1u16)%0x100) as u8;
                                 self.SR |= self.X & 0x80;
                                 self.SR |= if self.X == 0x0 {0x2} else {0x0};
                                 self.new_instruction = true;
