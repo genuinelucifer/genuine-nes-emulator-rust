@@ -31,6 +31,7 @@
 //(%11111111 = $FF = -1, %10000000 = $80 = -128, %01111111 = $7F = +127)
 
 // refer http://www.atarihq.com/danb/files/64doc.txt for cycle
+// vflag http://www.6502.org/tutorials/vflag.html
 
 pub mod memory;
 
@@ -92,25 +93,57 @@ impl Processor {
             self.current_instruction
         };
 
-        println!("inst1 :: {:#04X?} {} {:#04X} {} {}",nibble, self.new_instruction, self.current_instruction, self.cycle, self.arg);
+        println!("inst1 :: nibble: {:#04X?}, new_inst: {},  cur_inst: {:#04X}, cycle: {}, arg: {}",nibble, self.new_instruction, self.current_instruction, self.cycle, self.arg);
+        println!("before registers AC: {:#X?}, X: {:#X?}, Y: {:#X?}, SP: {:#X?}, PC: {:?}, SR: {:08b}", self.AC, self.X, self.Y, self.SP, self.PC, self.SR);
 
         match nibble & 0xF0 {
-            0x00 => {
-            },
-            0x10 => {
-            },
-            0x20 => {
-            },
-            0x30 => {
-            },
-            0x40 => {
-            },
-            0x50 => {
-            },
+            0x00 => {},
+            0x10 => {},
+            0x20 => {},
+            0x30 => {},
+            0x40 => {},
+            0x50 => {},
             0x60 => {
+                match nibble & 0x0F {
+                    0x09 => {
+                        match self.cycle {
+                            0x00 => {
+                                //read opcode
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                            },
+                            0x01 => {
+                                let operand = self.ram.get_instruction(self.PC as usize);
+                                self.PC += 1;
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                println!("sum: {:#b}",sum);
+                                let sum_as_i8 = (sum%(0xff as u16)) as u8;
+                                println!("sumu8: {}", sum_as_i8 as i16);
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= !((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {
+                                //unreachable
+                            }
+                        }
+                    },
+                    _ => {}
+                }
             },
-            0x70 => {
-            },
+            0x70 => {},
             0x80 => {
                 match nibble & 0x0F {
                     0x0D => {
@@ -148,30 +181,20 @@ impl Processor {
                     }
                 }
             },
-            0x90 => {
-            },
+            0x90 => {},
             0xA0 => {
                 match nibble & 0x0F {
-                    0x00 => {
-                    },
-                    0x01 => {
-                    },
-                    0x02 => {
-                    },
-                    0x03 => {
-                    },
-                    0x04 => {
-                    },
-                    0x05 => {
-                    },
-                    0x06 => {
-                    },
-                    0x07 => {
-                    },
-                    0x08 => {
-                    },
+                    0x00 => {},
+                    0x01 => {},
+                    0x02 => {},
+                    0x03 => {},
+                    0x04 => {},
+                    0x05 => {},
+                    0x06 => {},
+                    0x07 => {},
+                    0x08 => {},
                     0x09 => {
-                        // LDA #$x immediate, 2 cycle
+                        // LDA #$x immediate, 2 cycle, 2 bytes
                         match self.cycle {
                             0x00 => {
                                 //read opcode
@@ -179,8 +202,6 @@ impl Processor {
                                 self.cycle += 1;
                                 self.new_instruction = false;
                                 self.current_instruction = nibble;
-                                println!("flags after 1 cycle: {:#08X}", self.SR);
-                                println!("acc: {}", self.AC);
                             },
                             0x01 => {
                                 //read immediate value and load into AC
@@ -190,8 +211,6 @@ impl Processor {
                                 self.SR |= if self.AC == 0x0 {0x2} else {0x0};
                                 self.new_instruction = true;
                                 self.cycle = 0;
-                                println!("flags after 2 cycle: {:#08X}", self.SR);
-                                println!("acc: {}", self.AC);
                             },
                             _ => {
                                 //unreachable
@@ -199,36 +218,66 @@ impl Processor {
                         }
                     },
                     0x0A => {
+                        // TAX transfer accumulator to index x (1byte)(2 cycle)
+                        match self.cycle {
+                            0x00 => {
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                            },
+                            0x01 => {
+                                self.X = self.AC;
+                                self.SR |= self.X & 0x80;
+                                self.SR |= if self.X == 0x0 {0x2} else {0x0};
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {
+                                //unreachable
+                            }
+                        }
                     },
-                    0x0B => {
-                    },
-                    0x0C => {
-                    },
-                    0x0D => {
-                    },
-                    0x0E => {
-                    },
-                    0x0F => {
-                    },
-                    _ => {
-                    },
-
-
+                    0x0B => {},
+                    0x0C => {},
+                    0x0D => {},
+                    0x0E => {},
+                    0x0F => {},
+                    _ => {},
                 }
             },
-            0xB0 => {
-            },
-            0xC0 => {
-            },
-            0xD0 => {
-            },
+            0xB0 => {},
+            0xC0 => {},
+            0xD0 => {},
             0xE0 => {
+                match nibble & 0x0F {
+                    0x08 => {
+                        // INX increment X (2cycle, 1 byte)
+                        match self.cycle {
+                            0x00 => {
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                            },
+                            0x01 => {
+                                self.X += 1;
+                                self.SR |= self.X & 0x80;
+                                self.SR |= if self.X == 0x0 {0x2} else {0x0};
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    _ => {}
+                }
             },
-            0xF0 => {
-            },
-            _ => {
-            }
+            0xF0 => {},
+            _ => {}
         }
 
+        println!("after registers AC: {:#X?}, X: {:#X?}, Y: {:#X?}, SP: {:#X?}, PC: {:?}, SR: {:08b}", self.AC, self.X, self.Y, self.SP, self.PC, self.SR);
+        println!();
     }
 }
