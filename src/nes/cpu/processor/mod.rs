@@ -189,7 +189,28 @@ impl Processor {
                     _ => {}
                 }
             },
-            0x70 => {},
+            0x70 => {
+                match nibble & 0x0F {
+                    0x08 => {
+                        //SEI 2 cycle, 1 byte
+                        match self.cycle {
+                            0x00 => {
+                                self.PC += 1;
+                                self.current_instruction = nibble;
+                                self.new_instruction = false;
+                                self.cycle += 1;
+                            },
+                            0x01 => {
+                                self.SR |= 0x4;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    _ => {}
+                }
+            },
             0x80 => {
                 match nibble & 0x0F {
                     0x0D => {
