@@ -253,7 +253,27 @@ impl Processor {
                 match nibble & 0x0F {
                     0x00 => {},
                     0x01 => {},
-                    0x02 => {},
+                    0x02 => {
+                        // LDX 2 cycle, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.cycle += 1;
+                                self.current_instruction = nibble;
+                            },
+                            0x1 => {
+                                let data = self.ram.get_instruction(self.PC as usize);
+                                self.PC += 1;
+                                self.X = data;
+                                self.SR |= data & 0x80;
+                                self.SR |= if data == 0x0 {0x2} else {0x0};
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     0x03 => {},
                     0x04 => {},
                     0x05 => {},
