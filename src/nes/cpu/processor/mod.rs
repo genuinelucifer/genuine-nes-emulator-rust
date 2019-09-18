@@ -239,11 +239,38 @@ impl Processor {
                                 self.new_instruction = true;
                                 self.cycle = 0;
                             },
-                            _ => {
-
-                            }
+                            _ => {}
                         }
                     },
+                    0x0E => {
+                        //STX absolute, 4 cycle, 3 bytes
+                        match self.cycle {
+                            0x00 => {
+                                //read opcode
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                            },
+                            0x01 => {
+                                //read operand
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x02 => {
+                                self.arg = self.arg << 8 | self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x03 => {
+                                self.ram.set_address(self.X, self.arg as usize);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    }
                     _ => {
                     }
                 }
