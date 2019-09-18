@@ -213,6 +213,61 @@ impl Processor {
             },
             0x80 => {
                 match nibble & 0x0F {
+                    0x1 => {
+                        // STA indirect X 6 cycles, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.current_instruction = nibble;
+                                self.new_instruction = false;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.arg = self.ram.get_instruction(self.arg as usize) as u16;
+                                self.arg += self.X as u16;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                self.cycle += 1;
+                            },
+                            0x5 => {
+                                self.ram.set_address(self.AC, (self.arg << 8)|(self.arg+1) as usize);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x5 => {
+                        // STA 3 cycle, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.ram.set_address(self.AC, self.arg as usize);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     0x0A => {
                         // TXA 2 cycle, 1 byte
                         match self.cycle {
@@ -296,6 +351,100 @@ impl Processor {
             },
             0x90 => {
                 match nibble & 0x0F {
+                    0x1 => {
+                        // STA indirect Y 6 cycles, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.current_instruction = nibble;
+                                self.new_instruction = false;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.arg = self.ram.get_instruction((self.arg << 8)|(self.arg+1) as usize) as u16;
+                                self.arg += self.Y as u16;
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                // TODO :: fix high byte
+                                self.arg = self.ram.get_instruction(self.arg as usize) as u16;
+                                self.cycle += 1;
+                            },
+                            0x5 => {
+                                self.ram.set_address(self.AC, self.arg as usize);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x05 => {
+                        // STA X 4 cycle, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.arg += self.X as u16;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.ram.set_address(self.AC, self.arg as usize);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x09 => {
+                        //STA absolute Y, 5 cycle
+                        match self.cycle {
+                            0x00 => {
+                                //read opcode
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                            },
+                            0x01 => {
+                                //read operand
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x02 => {
+                                self.arg = self.arg << 8 | self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x03 => {
+                                self.arg += self.Y as u16;
+                                self.cycle += 1;
+                            },
+                            0x04 => {
+                                self.ram.set_address(self.AC, self.arg as usize);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     0x0A => {
                         // TXS 2 cycle, 1 byte
                         match self.cycle {
@@ -307,6 +456,39 @@ impl Processor {
                             },
                             0x1 => {
                                 self.SP = self.X;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x0D => {
+                        //STA absolute X, 5 cycle
+                        match self.cycle {
+                            0x00 => {
+                                //read opcode
+                                self.PC += 1;
+                                self.cycle += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                            },
+                            0x01 => {
+                                //read operand
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x02 => {
+                                self.arg = self.arg << 8 | self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x03 => {
+                                self.arg += self.X as u16;
+                                self.cycle += 1;
+                            },
+                            0x04 => {
+                                self.ram.set_address(self.AC, self.arg as usize);
                                 self.new_instruction = true;
                                 self.cycle = 0;
                             },
