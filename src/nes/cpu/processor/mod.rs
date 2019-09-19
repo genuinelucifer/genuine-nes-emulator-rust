@@ -239,7 +239,7 @@ impl Processor {
                                 self.cycle += 1;
                             },
                             0x5 => {
-                                self.ram.set_address(self.AC, (self.arg << 8)|(self.arg+1) as usize);
+                                self.ram.set_address(self.AC, ((self.arg << 8)|(self.arg+1)) as usize);
                                 self.new_instruction = true;
                                 self.cycle = 0;
                             },
@@ -369,7 +369,7 @@ impl Processor {
                                 self.cycle += 1;
                             },
                             0x3 => {
-                                self.arg = self.ram.get_instruction((self.arg << 8)|(self.arg+1) as usize) as u16;
+                                self.arg = self.ram.get_instruction(((self.arg << 8)|(self.arg+1)) as usize) as u16;
                                 self.arg += self.Y as u16;
                                 self.cycle += 1;
                             },
