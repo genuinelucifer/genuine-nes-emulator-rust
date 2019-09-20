@@ -150,6 +150,87 @@ impl Processor {
             0x50 => {},
             0x60 => {
                 match nibble & 0x0F {
+                    0x1 => {
+                        // ADC indirect X 6 cycle, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.arg += self.X as u16;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                self.arg = ((self.ram.get_instruction(self.arg as usize) as u16) | (self.ram.get_instruction((self.arg+1) as usize) as u16)<<8) as u16;
+                                self.cycle += 1;
+                            },
+                            0x5 => {
+                                let operand = self.ram.get_instruction(self.arg as usize);
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x5 => {
+                        // ADC 3 cycle, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                let operand = self.ram.get_instruction(self.arg as usize);
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     0x09 => {
                         // ADC immediate 2 cycle, 2 bytes
                         match self.cycle {
@@ -164,9 +245,7 @@ impl Processor {
                                 let operand = self.ram.get_instruction(self.PC as usize);
                                 self.PC += 1;
                                 let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
-                                println!("sum: {}",sum);
                                 let sum_as_i8 = (sum%(0x100 as u16)) as u8;
-                                println!("sumu8: {}", sum_as_i8);
 
                                 self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
                                 // The overflow flag is set when the sign of the addends is the same and
@@ -186,11 +265,138 @@ impl Processor {
                             }
                         }
                     },
+                    0xD => {
+                        // ADC absolute 4 cycle, 3 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16)<<8;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                let operand = self.ram.get_instruction(self.arg as usize);
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     _ => {}
                 }
             },
             0x70 => {
                 match nibble & 0x0F {
+                    0x1 => {
+                        // ADC indirect Y 6 cycle, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.arg = ((self.ram.get_instruction(self.arg as usize) as u16) | (self.ram.get_instruction((self.arg+1) as usize) as u16)<<8) as u16;
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                self.arg += self.Y as u16;
+                                self.cycle += 1;
+                            },
+                            0x5 => {
+                                let operand = self.ram.get_instruction(self.arg as usize);
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x5 => {
+                        // ADC 4 cycle, 2 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.arg += self.X as u16;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                let operand = self.ram.get_instruction(self.arg as usize);
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                println!("sum: {}",sum);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+                                println!("sumu8: {}", sum_as_i8);
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     0x08 => {
                         //SEI 2 cycle, 1 byte
                         match self.cycle {
@@ -202,6 +408,94 @@ impl Processor {
                             },
                             0x01 => {
                                 self.SR |= 0x4;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x9 => {
+                        // ADC absolute Y 4* cycle, 3 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16)<<8;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.arg += self.Y as u16;
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                let operand = self.ram.get_instruction(self.arg as usize);
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
+                    0xD => {
+                        // ADC absolute X 4* cycle, 3 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.PC += 1;
+                                self.new_instruction = false;
+                                self.current_instruction = nibble;
+                                self.cycle += 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16)<<8;
+                                self.PC += 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.arg += self.X as u16;
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                let operand = self.ram.get_instruction(self.arg as usize);
+                                let sum:u16 = (self.AC as u16) + (operand as u16) + ((self.SR & 0x1) as u16);
+                                let sum_as_i8 = (sum%(0x100 as u16)) as u8;
+
+                                self.SR |= if sum > 0xff {0x1} else {0x0}; // carry flag 0th bit
+                                // The overflow flag is set when the sign of the addends is the same and
+                                // differs from the sign of the sum
+                                // overflow = <'AC' and 'operant' have the same sign> &
+                                //           <the sign of 'AC' and 'sum' differs> &
+                                //           <extract sign bit>
+                                self.SR |= if (!((self.AC as u16^ sum) & (self.AC as u16 ^ operand as u16) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+                                self.SR |= sum_as_i8 & 0x80; //check 7th bit for negative result
+                                self.SR |= if sum_as_i8 == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+                                self.AC = sum_as_i8;
                                 self.new_instruction = true;
                                 self.cycle = 0;
                             },
@@ -429,7 +723,7 @@ impl Processor {
                                 self.cycle += 1;
                             },
                             0x02 => {
-                                self.arg = self.arg << 8 | self.ram.get_instruction(self.PC as usize) as u16;
+                                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16)<<8;
                                 self.PC += 1;
                                 self.cycle += 1;
                             },
@@ -479,7 +773,7 @@ impl Processor {
                                 self.cycle += 1;
                             },
                             0x02 => {
-                                self.arg = self.arg << 8 | self.ram.get_instruction(self.PC as usize) as u16;
+                                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16)<<8;
                                 self.PC += 1;
                                 self.cycle += 1;
                             },
