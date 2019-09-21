@@ -514,12 +514,12 @@ impl Processor {
 
     // add with carry
     fn instruction_adc(&mut self, byte: u8) {
-        let sum:u16 = (self.AC as u16) + (byte as u16) + ((self.SR & 0x1) as u16);
-        let sum_as_u8 = (sum%(0x100 as u16)) as u8;
-
-        self.set_flag_0th_bit_carry(sum);
+        let sum:i16 = (self.AC as i16) + (byte as i16) + ((self.SR & 0x1) as i16);
+        let sum_as_u8 = sum as u8;
+        println!("sum: {:#b} {} {}", sum_as_u8, self.SR & 0x1, sum as i8);
+        self.set_flag_0th_bit_carry(sum as u16);
         self.set_flag_1st_bit_zero(sum_as_u8);
-        self.set_flag_6th_bit_overflow(self.AC as u16, byte as u16, sum);
+        self.set_flag_6th_bit_overflow(self.AC as u16, byte as u16, sum as u16);
         self.set_flag_7th_bit_nagetive(sum_as_u8);
         self.AC = sum_as_u8;
     }
@@ -589,11 +589,16 @@ impl Processor {
         // overflow = <'x' and 'y' have the same sign> &
         //           <the sign of 'x' and 'sum' differs> &
         //           <extract sign bit>
-        self.SR |= if (!((x ^ z) & (x ^ y) & 0x80) as u8) == 0xFF {0x40} else {0x0}; // overflow flag 6th bit
+        self.SR |= if (((z ^ x) & (z ^ y) & 0x80) as u8) > 0x0 {0x40} else {0x0}; // overflow flag 6th bit
     }
 
     fn set_flag_7th_bit_nagetive(&mut self, result: u8) {
-        self.SR |= result & 0x80;
+        if (result as i8) < 0 {
+            self.SR |= 0x80;
+        } else {
+            self.SR &= 0x7F;
+        }
+        //self.SR |= result & 0x80;
     }
 
     /**
