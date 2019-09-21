@@ -367,16 +367,23 @@ impl Processor {
             },
             0xA0 => {
                 match nibble & 0x0F {
-                    0x00 => {},
-                    0x01 => {},
+                    0x00 => {
+                        self.addressing_mode_immediate(&Self::instruction_ldy);
+                    },
+                    0x01 => {
+                        self.addressing_mode_indirect_x(&Self::instruction_ldx);
+                    },
                     0x02 => {
                         // LDX 2 cycle, 2 bytes
                         self.addressing_mode_immediate(&Self::instruction_ldx);
                     },
-                    0x03 => {},
-                    0x04 => {},
+                    0x04 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_ldy);
+                    },
                     0x05 => {},
-                    0x06 => {},
+                    0x06 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_ldx);
+                    },
                     0x07 => {},
                     0x08 => {},
                     0x09 => {
@@ -400,14 +407,46 @@ impl Processor {
                         }
                     },
                     0x0B => {},
-                    0x0C => {},
+                    0x0C => {
+                        self.addressing_mode_absolute(&Self::instruction_ldy);
+                    },
                     0x0D => {},
-                    0x0E => {},
+                    0x0E => {
+                        self.addressing_mode_absolute(&Self::instruction_ldx);
+                    },
                     0x0F => {},
                     _ => {},
                 }
             },
-            0xB0 => {},
+            0xB0 => {
+                match nibble & 0x0F {
+                    0x01 => {
+                        self.addressing_mode_indirect_y(&Self::instruction_lda);
+                    },
+                    0x04 => {
+                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_ldy);
+                    }
+                    0x05 => {
+                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_lda);
+                    },
+                    0x04 => {
+                        self.addressing_mode_zero_page_with_index(false, &Self::instruction_ldx);
+                    },
+                    0x09 => {
+                        self.addressing_mode_absolute_with_index(false, &Self::instruction_lda);
+                    },
+                    0x0C => {
+                        self.addressing_mode_absolute_with_index(true, &Self::instruction_ldy);
+                    },
+                    0x0D => {
+                        self.addressing_mode_absolute_with_index(true, &Self::instruction_lda);
+                    },
+                    0x0E => {
+                        self.addressing_mode_absolute_with_index(false, &Self::instruction_ldx);
+                    },
+                    _ => {}
+                }
+            },
             0xC0 => {},
             0xD0 => {},
             0xE0 => {
@@ -488,6 +527,13 @@ impl Processor {
     // load into X
     fn instruction_ldx(&mut self, byte: u8) {
         self.X = byte;
+        self.set_flag_1st_bit_zero(byte);
+        self.set_flag_7th_bit_nagetive(byte);
+    }
+
+    // load into Y
+    fn instruction_ldy(&mut self, byte: u8) {
+        self.Y = byte;
         self.set_flag_1st_bit_zero(byte);
         self.set_flag_7th_bit_nagetive(byte);
     }
