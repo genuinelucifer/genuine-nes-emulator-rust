@@ -564,14 +564,25 @@ impl Processor {
                                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                                 self.PC += 1;
                                 self.cycle += 1;
-                                if self.SR & 0x02 == 0 {
+                                if self.SR & 0x02 > 0 {
                                     self.reset_instruction();
                                 }
                             },
                             0x2 => {
-                                self.PC += self.arg;
+                                println!("PC1: argI16: {}", self.arg as i8);
+                                let high = (self.PC >> 8) as u8;
+                                let low = (self.PC & 0xFF) as u8;
+                                println!("low : {}", low as i8);
+                                println!("high: {}", (high as u16));
+                                println!("signed {}", self.arg as i8 + low as i8);
+                                //println!("high+low {}",((high as u16) <<8) |(low+(self.arg as u8)) as u16);
+                                self.PC = (high as u16)<<8 | (low as i8 + self.arg as i8) as u16;
+
+                                println!("PC2: argI16: {}", self.arg as i16);
+
                                 // TODO:: fix PC high byte
                                 self.cycle += 1;
+                                self.reset_instruction();
                             },
                             0x3 => {
                                 self.reset_instruction();
@@ -789,7 +800,11 @@ impl Processor {
     fn instruction_cmp(&mut self, byte: u8) {
         let diff:i16 = (self.AC as i16) - (byte as i16);
         let diff_as_u8 = diff as u8;
-        self.set_flag_0th_bit_carry(diff as u16);
+        if self.AC > byte {
+            self.SR |= 0x01;
+        } else {
+            self.SR &= 0xFE; //0xFE == 1111 1110 in binary
+        }
         self.set_flag_1st_bit_zero(diff_as_u8);
         self.set_flag_7th_bit_nagetive(diff_as_u8);
     }
@@ -797,7 +812,12 @@ impl Processor {
     fn instruction_cpx(&mut self, byte: u8) {
         let diff:i16 = (self.X as i16) - (byte as i16);
         let diff_as_u8 = diff as u8;
-        self.set_flag_0th_bit_carry(diff as u16);
+        println!("cpx:: byte {}", byte);
+        if self.X > byte {
+            self.SR |= 0x01;
+        } else {
+            self.SR &= 0xFE; //0xFE == 1111 1110 in binary
+        }
         self.set_flag_1st_bit_zero(diff_as_u8);
         self.set_flag_7th_bit_nagetive(diff_as_u8);
     }
@@ -805,7 +825,11 @@ impl Processor {
     fn instruction_cpy(&mut self, byte: u8) {
         let diff:i16 = (self.Y as i16) - (byte as i16);
         let diff_as_u8 = diff as u8;
-        self.set_flag_0th_bit_carry(diff as u16);
+        if self.Y > byte {
+            self.SR |= 0x01;
+        } else {
+            self.SR &= 0xFE; //0xFE == 1111 1110 in binary
+        }
         self.set_flag_1st_bit_zero(diff_as_u8);
         self.set_flag_7th_bit_nagetive(diff_as_u8);
     }
@@ -848,7 +872,7 @@ impl Processor {
         if result == 0x0 {
             self.SR |= 0x02;
         } else {
-            self.SR &= 0xFC; // 0xFC == 1111 1101 in binary
+            self.SR &= 0xFD; // 0xFC == 1111 1101 in binary
         }
     }
 
