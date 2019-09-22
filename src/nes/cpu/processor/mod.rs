@@ -88,7 +88,9 @@ impl Processor {
                     0x00 => {
                         //BRK 7 cycle, 1byte
                         match self.cycle {
-                            0x0 => {},
+                            0x0 => {
+                                self.cycle = 1;
+                            },
                             0x1 => {
                                 self.PC += 1;
                                 self.cycle += 1;
@@ -121,11 +123,31 @@ impl Processor {
                         }
                     },
                     0x01 => {
-                        self.addressing_mode_indirect_x(&Self::instruction_or);
+                        self.addressing_mode_indirect_x_read(&Self::instruction_or);
                     },
                     0x05 => {
                         // OR with accumulator zeropage 3 cycles, 2 bytes
                         self.addressing_mode_zero_page_read(&Self::instruction_or);
+                    },
+                    0x06 => {
+                        self.addressing_mode_zero_page_read_write(&Self::instruction_asl_memory);
+                    },
+                    0x08 => {
+                        // PHP Push Processor Status on Stack 3 cycles, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.ram.set_address(self.SR, self.SP as usize);
+                                self.SP -= 1;
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
                     },
                     0x09 => {
                         // OR with accumulator #immediate 2 cycles, 2 bytes
@@ -137,7 +159,7 @@ impl Processor {
                     },
                     0x0D => {
                         // OR with accumulator absolute 4 cycles, 3 bytes
-                        self.addressing_mode_absolute(&Self::instruction_or);
+                        self.addressing_mode_absolute_read(&Self::instruction_or);
                     },
                     _ => {}
                 }
@@ -145,19 +167,19 @@ impl Processor {
             0x10 => {
                 match nibble & 0x0F {
                     0x01 => {
-                        self.addressing_mode_indirect_y(&Self::instruction_or);
+                        self.addressing_mode_indirect_y_read(&Self::instruction_or);
                     },
                     0x05 => {
                         //OR with accumulator zeropage X 4 cycles, 2 bytes
-                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_or);
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_or);
                     },
                     0x09 => {
                         //OR with accumulator absolute X 5 cycles, 3 bytes
-                        self.addressing_mode_absolute_with_index(false, &Self::instruction_or);
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_or);
                     },
                     0x0D => {
                         //OR with accumulator absolute X 5 cycles, 3 bytes
-                        self.addressing_mode_absolute_with_index(true, &Self::instruction_or);
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_or);
                     },
                     _ => {}
                 }
@@ -165,7 +187,10 @@ impl Processor {
             0x20 => {
                 match nibble & 0x0F {
                     0x01 => {
-                        self.addressing_mode_indirect_x(&Self::instruction_and);
+                        self.addressing_mode_indirect_x_read(&Self::instruction_and);
+                    },
+                    0x04 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_bit);
                     },
                     0x05 => {
                         // AND with accumulator zeropage 3 cycles, 2 bytes
@@ -175,9 +200,12 @@ impl Processor {
                         // AND with accumulator #immediate 2 cycles, 2 bytes
                         self.addressing_mode_immediate(&Self::instruction_and);
                     },
+                    0x0C => {
+                        self.addressing_mode_absolute_read(&Self::instruction_bit);
+                    },
                     0x0D => {
                         // AND with accumulator absolute 4 cycles, 3 bytes
-                        self.addressing_mode_absolute(&Self::instruction_and);
+                        self.addressing_mode_absolute_read(&Self::instruction_and);
                     },
                     _ => {}
                 }
@@ -185,19 +213,19 @@ impl Processor {
             0x30 => {
                 match nibble & 0x0F {
                     0x01 => {
-                        self.addressing_mode_indirect_y(&Self::instruction_and);
+                        self.addressing_mode_indirect_y_read(&Self::instruction_and);
                     },
                     0x05 => {
                         //AND with accumulator zeropage X 4 cycles, 2 bytes
-                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_and);
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_and);
                     },
                     0x09 => {
                         //AND with accumulator absolute X 5 cycles, 3 bytes
-                        self.addressing_mode_absolute_with_index(false, &Self::instruction_and);
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_and);
                     },
                     0x0D => {
                         //AND with accumulator absolute X 5 cycles, 3 bytes
-                        self.addressing_mode_absolute_with_index(true, &Self::instruction_and);
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_and);
                     },
                     _ => {}
                 }
@@ -205,11 +233,28 @@ impl Processor {
             0x40 => {
                 match nibble & 0x0F {
                     0x01 => {
-                        self.addressing_mode_indirect_x(&Self::instruction_xor);
+                        self.addressing_mode_indirect_x_read(&Self::instruction_xor);
                     },
                     0x05 => {
                         // XOR with accumulator zeropage 3 cycles, 2 bytes
                         self.addressing_mode_zero_page_read(&Self::instruction_xor);
+                    },
+                    0x08 => {
+                        // PHA Push Accumulator on Stack 3 cycles, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.ram.set_address(self.AC, self.SP as usize);
+                                self.SP -= 1;
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
                     },
                     0x09 => {
                         // XOR with accumulator #immediate 2 cycles, 2 bytes
@@ -217,7 +262,7 @@ impl Processor {
                     },
                     0x0D => {
                         // XOR with accumulator absolute 4 cycles, 3 bytes
-                        self.addressing_mode_absolute(&Self::instruction_xor);
+                        self.addressing_mode_absolute_read(&Self::instruction_xor);
                     },
                     _ => {}
                 }
@@ -225,19 +270,19 @@ impl Processor {
             0x50 => {
                 match nibble & 0x0F {
                     0x01 => {
-                        self.addressing_mode_indirect_y(&Self::instruction_xor);
+                        self.addressing_mode_indirect_y_read(&Self::instruction_xor);
                     },
                     0x05 => {
                         //XOR with accumulator zeropage X 4 cycles, 2 bytes
-                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_xor);
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_xor);
                     },
                     0x09 => {
                         //XOR with accumulator absolute X 5 cycles, 3 bytes
-                        self.addressing_mode_absolute_with_index(false, &Self::instruction_xor);
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_xor);
                     },
                     0x0D => {
                         //XOR with accumulator absolute X 5 cycles, 3 bytes
-                        self.addressing_mode_absolute_with_index(true, &Self::instruction_xor);
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_xor);
                     },
                     _ => {}
                 }
@@ -246,7 +291,7 @@ impl Processor {
                 match nibble & 0x0F {
                     0x01 => {
                         // ADC indirect X 6 cycle, 2 bytes
-                        self.addressing_mode_indirect_x(&Self::instruction_adc);
+                        self.addressing_mode_indirect_x_read(&Self::instruction_adc);
                     },
                     0x05 => {
                         // ADC 3 cycle, 2 bytes
@@ -258,7 +303,7 @@ impl Processor {
                     },
                     0x0D => {
                         // ADC absolute 4 cycle, 3 bytes
-                        self.addressing_mode_absolute(&Self::instruction_adc);
+                        self.addressing_mode_absolute_read(&Self::instruction_adc);
                     },
                     _ => {}
                 }
@@ -267,17 +312,18 @@ impl Processor {
                 match nibble & 0x0F {
                     0x01 => {
                         // ADC indirect Y 6 cycle, 2 bytes
-                        self.addressing_mode_indirect_y(&Self::instruction_adc);
+                        self.addressing_mode_indirect_y_read(&Self::instruction_adc);
                     },
                     0x05 => {
                         // ADC 4 cycle, 2 bytes
-                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_adc);
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_adc);
                     },
                     0x08 => {
                         //SEI 2 cycle, 1 byte
                         match self.cycle {
                             0x00 => {
                                 self.new_instruction(nibble);
+                                self.cycle = 1;
                             },
                             0x01 => {
                                 self.SR |= 0x4;
@@ -289,11 +335,11 @@ impl Processor {
                     },
                     0x09 => {
                         // ADC absolute Y 4* cycle, 3 bytes
-                        self.addressing_mode_absolute_with_index(false, &Self::instruction_adc);
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_adc);
                     },
                     0x0D => {
                         // ADC absolute X 4* cycle, 3 bytes
-                        self.addressing_mode_absolute_with_index(true, &Self::instruction_adc);
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_adc);
                     },
                     _ => {}
                 }
@@ -302,16 +348,29 @@ impl Processor {
                 match nibble & 0x0F {
                     0x01 => {
                         // STA indirect X 6 cycles, 2 bytes
-                        self.addressing_mode_indirect_x(&Self::instruction_sta);
+                        self.addressing_mode_indirect_x_write(&Self::instruction_sta);
+                    },
+                    0x04 => {
+                        // STX zero, 4 cycle, 3 bytes
+                        self.addressing_mode_zero_page_write(&Self::instruction_sty);
                     },
                     0x05 => {
                         // STA 3 cycle, 2 bytes
-                        self.addressing_mode_zero_page_read(&Self::instruction_sta);
+                        self.addressing_mode_zero_page_write(&Self::instruction_sta);
                     },
+                    0x06 => {
+                        // STX zero, 4 cycle, 3 bytes
+                        self.addressing_mode_zero_page_write(&Self::instruction_stx);
+                    },
+                    0x08 => {
+                        self.addressing_mode_implied_or_accumulator(&Self::instruction_dey);
+                    }
                     0x0A => {
                         // TXA 2 cycle, 1 byte
                         match self.cycle {
-                            0x0 => {},
+                            0x0 => {
+                                self.cycle = 1;
+                            },
                             0x1 => {
                                 self.AC = self.X;
                                 self.SR |= self.AC & 0x80;
@@ -321,36 +380,49 @@ impl Processor {
                             _ => {}
                         }
                     },
+                    0x0C => {
+                        // STX absolute, 4 cycle, 3 bytes
+                        self.addressing_mode_absolute_write(&Self::instruction_sty);
+                    },
                     0x0D => {
                         // STA absolute, 4 cycle, 3 bytes
-                        self.addressing_mode_absolute(&Self::instruction_sta);
+                        self.addressing_mode_absolute_write(&Self::instruction_sta);
                     },
                     0x0E => {
                         // STX absolute, 4 cycle, 3 bytes
-                        self.addressing_mode_absolute(&Self::instruction_stx);
-                    }
-                    _ => {
-                    }
+                        self.addressing_mode_absolute_write(&Self::instruction_stx);
+                    },
+                    _ => {}
                 }
             },
             0x90 => {
                 match nibble & 0x0F {
                     0x01 => {
                         // STA indirect Y 6 cycles, 2 bytes
-                        self.addressing_mode_indirect_y(&Self::instruction_sta);
+                        self.addressing_mode_indirect_y_write(&Self::instruction_sta);
+                    },
+                    0x04 => {
+                        // STY zero X, 4 cycle, 3 bytes
+                        self.addressing_mode_zero_page_with_index_write(true, &Self::instruction_sty);
                     },
                     0x05 => {
                         // STA X 4 cycle, 2 bytes
-                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_sta);
+                        self.addressing_mode_zero_page_with_index_write(true, &Self::instruction_sta);
+                    },
+                    0x06 => {
+                        // STX zero page Y, 4 cycle, 3 bytes
+                        self.addressing_mode_zero_page_with_index_write(false, &Self::instruction_stx);
                     },
                     0x09 => {
                         //STA absolute Y, 5 cycle
-                        self.addressing_mode_absolute_with_index(false, &Self::instruction_sta);
+                        self.addressing_mode_absolute_with_index_write(false, &Self::instruction_sta);
                     },
                     0x0A => {
                         // TXS 2 cycle, 1 byte
                         match self.cycle {
-                            0x0 => {},
+                            0x0 => {
+                                self.cycle = 1;
+                            },
                             0x1 => {
                                 self.SP = self.X;
                                 self.reset_instruction();
@@ -360,7 +432,7 @@ impl Processor {
                     },
                     0x0D => {
                         //STA absolute X, 5 cycle
-                        self.addressing_mode_absolute_with_index(true, &Self::instruction_sta);
+                        self.addressing_mode_absolute_with_index_write(true, &Self::instruction_sta);
                     },
                     _ => {}
                 }
@@ -371,7 +443,7 @@ impl Processor {
                         self.addressing_mode_immediate(&Self::instruction_ldy);
                     },
                     0x01 => {
-                        self.addressing_mode_indirect_x(&Self::instruction_ldx);
+                        self.addressing_mode_indirect_x_read(&Self::instruction_lda);
                     },
                     0x02 => {
                         // LDX 2 cycle, 2 bytes
@@ -380,7 +452,9 @@ impl Processor {
                     0x04 => {
                         self.addressing_mode_zero_page_read(&Self::instruction_ldy);
                     },
-                    0x05 => {},
+                    0x05 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_lda);
+                    },
                     0x06 => {
                         self.addressing_mode_zero_page_read(&Self::instruction_ldx);
                     },
@@ -393,7 +467,9 @@ impl Processor {
                     0x0A => {
                         // TAX transfer accumulator to index x (1byte)(2 cycle)
                         match self.cycle {
-                            0x00 => {},
+                            0x00 => {
+                                self.cycle = 1;
+                            },
                             0x01 => {
                                 self.X = self.AC;
                                 self.SR |= self.X & 0x80;
@@ -408,11 +484,11 @@ impl Processor {
                     },
                     0x0B => {},
                     0x0C => {
-                        self.addressing_mode_absolute(&Self::instruction_ldy);
+                        self.addressing_mode_absolute_read(&Self::instruction_ldy);
                     },
                     0x0D => {},
                     0x0E => {
-                        self.addressing_mode_absolute(&Self::instruction_ldx);
+                        self.addressing_mode_absolute_read(&Self::instruction_ldx);
                     },
                     0x0F => {},
                     _ => {},
@@ -421,40 +497,123 @@ impl Processor {
             0xB0 => {
                 match nibble & 0x0F {
                     0x01 => {
-                        self.addressing_mode_indirect_y(&Self::instruction_lda);
+                        self.addressing_mode_indirect_y_read(&Self::instruction_lda);
                     },
                     0x04 => {
-                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_ldy);
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_ldy);
                     }
                     0x05 => {
-                        self.addressing_mode_zero_page_with_index(true, &Self::instruction_lda);
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_lda);
                     },
-                    0x04 => {
-                        self.addressing_mode_zero_page_with_index(false, &Self::instruction_ldx);
+                    0x06 => {
+                        self.addressing_mode_zero_page_with_index_read(false, &Self::instruction_ldx);
                     },
                     0x09 => {
-                        self.addressing_mode_absolute_with_index(false, &Self::instruction_lda);
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_lda);
                     },
                     0x0C => {
-                        self.addressing_mode_absolute_with_index(true, &Self::instruction_ldy);
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_ldy);
                     },
                     0x0D => {
-                        self.addressing_mode_absolute_with_index(true, &Self::instruction_lda);
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_lda);
                     },
                     0x0E => {
-                        self.addressing_mode_absolute_with_index(false, &Self::instruction_ldx);
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_ldx);
                     },
                     _ => {}
                 }
             },
-            0xC0 => {},
-            0xD0 => {},
+            0xC0 => {
+                match nibble & 0x0F {
+                    0x00 => {
+                        self.addressing_mode_immediate(&Self::instruction_cpy);
+                    },
+                    0x01 => {
+                        self.addressing_mode_indirect_x_read(&Self::instruction_cmp);
+                    },
+                    0x04 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_cpy);
+                    },
+                    0x05 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_cmp);
+                    },
+                    0x09 => {
+                        self.addressing_mode_immediate(&Self::instruction_cmp);
+                    },
+                    0x0A => {
+                        self.addressing_mode_implied_or_accumulator(&Self::instruction_dex);
+                    },
+                    0x0C => {
+                        self.addressing_mode_absolute_read(&Self::instruction_cpy);
+                    },
+                    0x0D => {
+                        self.addressing_mode_absolute_read(&Self::instruction_cmp);
+                    },
+                    _ => {}
+                }
+            },
+            0xD0 => {
+                match nibble & 0x0F {
+                    0x00 => {
+                        // BNE change branch if result was not zero
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC += 1;
+                                self.cycle += 1;
+                                if self.SR & 0x02 == 0 {
+                                    self.reset_instruction();
+                                }
+                            },
+                            0x2 => {
+                                self.PC += self.arg;
+                                // TODO:: fix PC high byte
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.reset_instruction();
+                            }
+                            _ => {}
+                        }
+                    },
+                    0x01 => {
+                        self.addressing_mode_indirect_y_read(&Self::instruction_cmp);
+                    },
+                    0x05 => {
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_cmp);
+                    },
+                    0x09 => {
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_cmp);
+                    },
+                    0x0D => {
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_cmp);
+                    },
+                    _ => {}
+                }
+            },
             0xE0 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        self.addressing_mode_immediate(&Self::instruction_cpx);
+                    },
+                    0x01 => {
+                        self.addressing_mode_indirect_x_read(&Self::instruction_sbc);
+                    },
+                    0x04 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_cpx);
+                    },
+                    0x05 => {
+                        self.addressing_mode_zero_page_read(&Self::instruction_sbc);
+                    },
                     0x08 => {
                         // INX increment X (2cycle, 1 byte)
                         match self.cycle {
-                            0x00 => {},
+                            0x00 => {
+                                self.cycle = 1;
+                            },
                             0x01 => {
                                 self.X = ((self.X as u16 + 1u16)%0x100) as u8;
                                 self.SR |= self.X & 0x80;
@@ -465,10 +624,47 @@ impl Processor {
                             _ => {}
                         }
                     },
+                    0x09 => {
+                        self.addressing_mode_immediate(&Self::instruction_sbc);
+                    },
+                    0x0A => {
+                        // No operation NOP 2 cycles, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
+                    },
+                    0x0C => {
+                        self.addressing_mode_absolute_read(&Self::instruction_cpx);
+                    },
+                    0x0D => {
+                        self.addressing_mode_absolute_read(&Self::instruction_sbc);
+                    },
                     _ => {}
                 }
             },
-            0xF0 => {},
+            0xF0 => {
+                match nibble & 0x0F {
+                    0x01 => {
+                        self.addressing_mode_indirect_y_read(&Self::instruction_sbc);
+                    },
+                    0x05 => {
+                        self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_sbc);
+                    },
+                    0x09 => {
+                        self.addressing_mode_absolute_with_index_read(false, &Self::instruction_sbc);
+                    },
+                    0x0D => {
+                        self.addressing_mode_absolute_with_index_read(true, &Self::instruction_sbc);
+                    },
+                    _ => {}
+                }
+            },
             _ => {}
         }
 
@@ -477,7 +673,6 @@ impl Processor {
     }
 
     fn new_instruction(&mut self, instruction: u8) {
-        self.cycle = 1;
         self.new_instruction = false;
         self.current_instruction = instruction;
     }
@@ -546,13 +741,21 @@ impl Processor {
     }
 
     // store accumulator in memory
-    fn instruction_sta(&mut self, _: u8) {
-        self.ram.set_address(self.AC, self.arg as usize);
+    fn instruction_sta(&mut self, _: u8) -> u8 {
+        //self.ram.set_address(self.AC, self.arg as usize);
+        self.AC
     }
 
     // store X in memory {
-    fn instruction_stx(&mut self, _: u8) {
-        self.ram.set_address(self.X, self.arg as usize);
+    fn instruction_stx(&mut self, _: u8) -> u8 {
+        //self.ram.set_address(self.X, self.arg as usize);
+        self.X
+    }
+
+    // store Y in memory
+    fn instruction_sty(&mut self, _: u8) -> u8 {
+        //self.ram.set_address(self.Y, self.arg as usize);
+        self.Y
     }
 
     // arithmetic shift left
@@ -563,24 +766,90 @@ impl Processor {
         self.set_flag_1st_bit_zero(self.AC);
     }
 
-    fn instruction_asl_memory(&mut self) {
-        self.SR |= self.AC & 0x80;
-        self.AC <<= 1;
-        self.set_flag_7th_bit_nagetive(self.AC);
-        self.set_flag_1st_bit_zero(self.AC);
+    fn instruction_asl_memory(&mut self, byte: u8) -> u8 {
+        self.SR |= byte & 0x80;
+        let byte = byte << 1;
+        self.set_flag_7th_bit_nagetive(byte);
+        self.set_flag_1st_bit_zero(byte);
+        byte
     }
 
+    // subtract with borrow
+    fn instruction_sbc(&mut self, byte: u8) {
+        let sum:i16 = (self.AC as i16) - (byte as i16) - ((self.SR & 0x1) as i16);
+        let sum_as_u8 = sum as u8;
+        println!("sum: {:#b} {} {}", sum_as_u8, self.SR & 0x1, sum as i8);
+        self.set_flag_0th_bit_carry(sum as u16);
+        self.set_flag_1st_bit_zero(sum_as_u8);
+        self.set_flag_6th_bit_overflow(self.AC as u16, byte as u16, sum as u16);
+        self.set_flag_7th_bit_nagetive(sum_as_u8);
+        self.AC = sum_as_u8;
+    }
+
+    fn instruction_cmp(&mut self, byte: u8) {
+        let diff:i16 = (self.AC as i16) - (byte as i16);
+        let diff_as_u8 = diff as u8;
+        self.set_flag_0th_bit_carry(diff as u16);
+        self.set_flag_1st_bit_zero(diff_as_u8);
+        self.set_flag_7th_bit_nagetive(diff_as_u8);
+    }
+
+    fn instruction_cpx(&mut self, byte: u8) {
+        let diff:i16 = (self.X as i16) - (byte as i16);
+        let diff_as_u8 = diff as u8;
+        self.set_flag_0th_bit_carry(diff as u16);
+        self.set_flag_1st_bit_zero(diff_as_u8);
+        self.set_flag_7th_bit_nagetive(diff_as_u8);
+    }
+
+    fn instruction_cpy(&mut self, byte: u8) {
+        let diff:i16 = (self.Y as i16) - (byte as i16);
+        let diff_as_u8 = diff as u8;
+        self.set_flag_0th_bit_carry(diff as u16);
+        self.set_flag_1st_bit_zero(diff_as_u8);
+        self.set_flag_7th_bit_nagetive(diff_as_u8);
+    }
+
+    fn instruction_bit(&mut self, byte: u8) {
+        self.set_flag_7th_bit_nagetive(byte);
+        if byte & 0x40 == 0x40 {
+            self.SR |= 0x40;
+        } else {
+            self.SR &= 0xBF; //0xBF == 1011 1111 in binary
+        }
+        self.set_flag_1st_bit_zero(byte & self.AC);
+    }
+
+    fn instruction_dex(&mut self) {
+        self.X -= 1;
+        self.set_flag_1st_bit_zero(self.X);
+        self.set_flag_7th_bit_nagetive(self.X);
+    }
+
+    fn instruction_dey(&mut self) {
+        self.Y -= 1;
+        self.set_flag_1st_bit_zero(self.X);
+        self.set_flag_7th_bit_nagetive(self.X);
+    }
 
     /**
      * set flags
      * function's name starts with `set_flag_`
      */
     fn set_flag_0th_bit_carry(&mut self, result:u16) {
-        self.SR |= if result > 0xff {0x1} else {0x0}; // carry flag 0th bit
+        if result > 0xFF {
+            self.SR |= 0x01;
+        } else {
+            self.SR &= 0xFE; //0xFE == 1111 1110 in binary
+        }
     }
 
     fn set_flag_1st_bit_zero(&mut self, result:u8) {
-        self.SR |= if result == 0x0 {0x2} else {0x0}; // zero flag 1st bit
+        if result == 0x0 {
+            self.SR |= 0x02;
+        } else {
+            self.SR &= 0xFC; // 0xFC == 1111 1101 in binary
+        }
     }
 
     fn set_flag_6th_bit_overflow(&mut self, x:u16, y:u16, z:u16) {
@@ -589,7 +858,11 @@ impl Processor {
         // overflow = <'x' and 'y' have the same sign> &
         //           <the sign of 'x' and 'sum' differs> &
         //           <extract sign bit>
-        self.SR |= if (((z ^ x) & (z ^ y) & 0x80) as u8) > 0x0 {0x40} else {0x0}; // overflow flag 6th bit
+        if (((z ^ x) & (z ^ y) & 0x80) as u8) > 0x0 {
+            self.SR |= 0x40;
+        } else {
+            self.SR &= 0xBF;
+        }
     }
 
     fn set_flag_7th_bit_nagetive(&mut self, result: u8) {
@@ -607,7 +880,9 @@ impl Processor {
      */
     fn addressing_mode_immediate(&mut self, instruction: &Fn(&mut Self, u8)) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 let byte = self.ram.get_instruction(self.PC as usize);
                 self.PC += 1;
@@ -621,14 +896,16 @@ impl Processor {
     // Read instructions (LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, LAX, NOP)
     fn addressing_mode_zero_page_read(&mut self, instruction: &Fn(&mut Self, u8)) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                 self.PC += 1;
                 self.cycle += 1;
             },
             0x2 => {
-                instruction(self, self.arg as u8);
+                instruction(self, self.ram.get_instruction(self.arg as usize));
                 self.reset_instruction();
             },
             _ => {}
@@ -636,9 +913,11 @@ impl Processor {
     }
 
     // Read-Modify-Write instructions (ASL, LSR, ROL, ROR, INC, DEC, SLO, SRE, RLA, RRA, ISB, DCP)
-    fn addressing_mode_zero_page_read_write(&mut self, instruction: &Fn(&mut Self, u8)) {
+    fn addressing_mode_zero_page_read_write(&mut self, instruction: &Fn(&mut Self, u8) -> u8) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                 self.PC += 1;
@@ -652,7 +931,27 @@ impl Processor {
                 self.cycle += 1;
             },
             0x4 => {
-                instruction(self, self.arg as u8);
+                let byte = instruction(self, self.arg as u8);
+                self.ram.set_address(byte, self.arg as usize);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_zero_page_write(&mut self, instruction: &Fn(&mut Self, u8) -> u8) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
                 self.reset_instruction();
             },
             _ => {}
@@ -660,9 +959,12 @@ impl Processor {
     }
 
 
-    fn addressing_mode_zero_page_with_index(&mut self, is_x: bool, instruction: &Fn(&mut Self, u8)) {
+    // Read instructions (LDA, LDX, LDY, EOR, AND, ORA, ADC, SBC, CMP, BIT, LAX, NOP)
+    fn addressing_mode_zero_page_with_index_read(&mut self, is_x: bool, instruction: &Fn(&mut Self, u8)) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                 self.PC += 1;
@@ -681,9 +983,57 @@ impl Processor {
         }
     }
 
-    fn addressing_mode_absolute(&mut self, instruction: &Fn(&mut Self, u8)) {
+    fn addressing_mode_zero_page_with_index_read_write(&mut self, is_x: bool, instruction: &Fn(&mut Self, u8)) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                self.arg += (if is_x {self.X} else {self.Y}) as u16;
+                self.cycle += 1;
+            },
+            0x3 => {
+                let byte = self.ram.get_instruction(self.arg as usize);
+                instruction(self, byte);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_zero_page_with_index_write(&mut self, is_x: bool, instruction: &Fn(&mut Self, u8) -> u8) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                self.arg += (if is_x {self.X} else {self.Y}) as u16;
+                self.cycle += 1;
+            },
+            0x3 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_absolute_read(&mut self, instruction: &Fn(&mut Self, u8)) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                 self.PC += 1;
@@ -703,9 +1053,35 @@ impl Processor {
         }
     }
 
-    fn addressing_mode_absolute_with_index(&mut self, is_x:bool, instruction: &Fn(&mut Self, u8)) {
+    fn addressing_mode_absolute_write(&mut self, instruction: &Fn(&mut Self, u8) -> u8) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16) << 8;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x3 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_absolute_with_index_read(&mut self, is_x:bool, instruction: &Fn(&mut Self, u8)) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                 self.PC += 1;
@@ -729,9 +1105,40 @@ impl Processor {
         }
     }
 
-    fn addressing_mode_indirect_x(&mut self, instruction: &Fn(&mut Self, u8)) {
+
+    fn addressing_mode_absolute_with_index_write(&mut self, is_x:bool, instruction: &Fn(&mut Self, u8) -> u8) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16)<<8;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x3 => {
+                self.arg += (if is_x {self.X} else {self.Y}) as u16;
+                self.cycle += 1;
+            },
+            0x4 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_indirect_x_read(&mut self, instruction: &Fn(&mut Self, u8)) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                 self.PC += 1;
@@ -757,9 +1164,42 @@ impl Processor {
         }
     }
 
-    fn addressing_mode_indirect_y(&mut self, instruction: &Fn(&mut Self, u8)) {
+
+    fn addressing_mode_indirect_x_write(&mut self, instruction: &Fn(&mut Self, u8) -> u8) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                self.arg += self.X as u16;
+                self.cycle += 1;
+            },
+            0x3 => {
+                self.cycle += 1;
+            },
+            0x4 => {
+                self.arg = ((self.ram.get_instruction(self.arg as usize) as u16) | (self.ram.get_instruction((self.arg+1) as usize) as u16)<<8) as u16;
+                self.cycle += 1;
+            },
+            0x5 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_indirect_y_read(&mut self, instruction: &Fn(&mut Self, u8)) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 self.arg = self.ram.get_instruction(self.PC as usize) as u16;
                 self.PC += 1;
@@ -785,9 +1225,41 @@ impl Processor {
         }
     }
 
+    fn addressing_mode_indirect_y_write(&mut self, instruction: &Fn(&mut Self, u8) -> u8) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                self.cycle += 1;
+            },
+            0x3 => {
+                self.arg = ((self.ram.get_instruction(self.arg as usize) as u16) | (self.ram.get_instruction((self.arg+1) as usize) as u16)<<8) as u16;
+                self.cycle += 1;
+            },
+            0x4 => {
+                self.arg += self.Y as u16;
+                self.cycle += 1;
+            },
+            0x5 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
     fn addressing_mode_implied_or_accumulator(&mut self, instruction: &Fn(&mut Self)) {
         match self.cycle {
-            0x0 => {},
+            0x0 => {
+                self.cycle = 1;
+            },
             0x1 => {
                 instruction(self);
                 self.reset_instruction();
