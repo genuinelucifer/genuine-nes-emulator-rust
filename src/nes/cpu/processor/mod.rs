@@ -489,6 +489,9 @@ impl Processor {
                         // ADC 3 cycle, 2 bytes
                         self.addressing_mode_zero_page_read(&Self::instruction_adc);
                     },
+                    0x06 => {
+                        self.addressing_mode_zero_page_read_write(&Self::instruction_ror_memory);
+                    },
                     0x08 => {
                         // PLA 4 cycles, 1 byte
                         match self.cycle {
@@ -512,6 +515,9 @@ impl Processor {
                     0x09 => {
                         // ADC immediate 2 cycle, 2 bytes
                         self.addressing_mode_immediate(&Self::instruction_adc);
+                    },
+                    0x0A => {
+                        self.addressing_mode_implied_or_accumulator(&Self::instruction_ror_accumulator);
                     },
                     0x0C => {
                         // JMP with 5 cycles, 3 bytes
@@ -546,6 +552,9 @@ impl Processor {
                         // ADC absolute 4 cycle, 3 bytes
                         self.addressing_mode_absolute_read(&Self::instruction_adc);
                     },
+                    0x0E => {
+                        self.addressing_mode_absolute_read_write(&Self::instruction_ror_memory);
+                    },
                     _ => {}
                 }
             },
@@ -562,6 +571,9 @@ impl Processor {
                     0x05 => {
                         // ADC 4 cycle, 2 bytes
                         self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_adc);
+                    },
+                    0x06 => {
+                        self.addressing_mode_zero_page_with_index_read_write(true, &Self::instruction_ror_memory);
                     },
                     0x08 => {
                         //SEI 2 cycle, 1 byte
@@ -585,6 +597,9 @@ impl Processor {
                     0x0D => {
                         // ADC absolute X 4* cycle, 3 bytes
                         self.addressing_mode_absolute_with_index_read(true, &Self::instruction_adc);
+                    },
+                    0x0E => {
+                        self.addressing_mode_absolute_with_index_read_write(true, &Self::instruction_ror_memory);
                     },
                     _ => {}
                 }
@@ -1183,7 +1198,6 @@ impl Processor {
     fn instruction_lsr_accumulator(&mut self) {
         let carry = self.AC & 0x01;
         self.AC >>= 1;
-        self.AC |= carry << 7;
         if carry > 0 {
             self.SR |= 0x01;
         } else {
@@ -1194,6 +1208,32 @@ impl Processor {
     }
 
     fn instruction_lsr_memory(&mut self, byte: u8) -> u8 {
+        let carry = byte & 0x01;
+        let byte =  byte >> 1;
+        if carry > 0 {
+            self.SR |= 0x01;
+        } else {
+            self.SR &= 0xFE;
+        }
+        self.set_flag_7th_bit_nagetive(byte);
+        self.set_flag_1st_bit_zero(byte);
+        byte
+    }
+
+    fn instruction_ror_accumulator(&mut self) {
+        let carry = self.AC & 0x01;
+        self.AC >>= 1;
+        self.AC |= carry << 7;
+        if carry > 0 {
+            self.SR |= 0x01;
+        } else {
+            self.SR &= 0xFE;
+        }
+        self.set_flag_7th_bit_nagetive(self.AC);
+        self.set_flag_1st_bit_zero(self.AC);
+    }
+
+    fn instruction_ror_memory(&mut self, byte: u8) -> u8 {
         let carry = byte & 0x01;
         let byte =  byte >> 1;
         let byte = byte | (carry << 7);
