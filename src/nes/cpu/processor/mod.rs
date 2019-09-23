@@ -378,6 +378,25 @@ impl Processor {
                         // XOR with accumulator #immediate 2 cycles, 2 bytes
                         self.addressing_mode_immediate(&Self::instruction_xor);
                     },
+                    0x0C => {
+                        // JMP with 3 cycles, 3 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC +=1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                let high=self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC = (high << 8) | self.arg;
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
+                    },
                     0x0D => {
                         // XOR with accumulator absolute 4 cycles, 3 bytes
                         self.addressing_mode_absolute_read(&Self::instruction_xor);
@@ -475,6 +494,35 @@ impl Processor {
                     0x09 => {
                         // ADC immediate 2 cycle, 2 bytes
                         self.addressing_mode_immediate(&Self::instruction_adc);
+                    },
+                    0x0C => {
+                        // JMP with 5 cycles, 3 bytes
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                                self.PC +=1;
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                let high=self.ram.get_instruction(self.PC as usize) as u16;
+                                self.arg = (high << 8) | self.arg;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                let low= self.ram.get_instruction(self.arg as usize) as u16;
+                                let high = self.ram.get_instruction((self.arg+1) as usize) as u16;
+                                self.PC=(high << 8) | low;
+                                self.reset_instruction();
+                            },
+
+                            _ => {}
+                        }
                     },
                     0x0D => {
                         // ADC absolute 4 cycle, 3 bytes
