@@ -851,6 +851,25 @@ impl Processor {
                     0x05 => {
                         self.addressing_mode_zero_page_read(&Self::instruction_cmp);
                     },
+                    0x06 => {
+                        self.addressing_mode_zero_page_read_write(&Self::instruction_dec);
+                    },
+                    0x08 => {
+                        // INX increment Y (2cycle, 1 byte)
+                        match self.cycle {
+                            0x00 => {
+                                self.cycle = 1;
+                            },
+                            0x01 => {
+                                self.Y = ((self.Y as u16 + 1u16)%0x100) as u8;
+                                self.set_flag_7th_bit_nagetive(self.Y);
+                                self.set_flag_1st_bit_zero(self.Y);
+                                self.new_instruction = true;
+                                self.cycle = 0;
+                            },
+                            _ => {}
+                        }
+                    },
                     0x09 => {
                         self.addressing_mode_immediate(&Self::instruction_cmp);
                     },
@@ -862,6 +881,9 @@ impl Processor {
                     },
                     0x0D => {
                         self.addressing_mode_absolute_read(&Self::instruction_cmp);
+                    },
+                    0x0E => {
+                        self.addressing_mode_absolute_read_write(&Self::instruction_dec);
                     },
                     _ => {}
                 }
@@ -878,6 +900,9 @@ impl Processor {
                     0x05 => {
                         self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_cmp);
                     },
+                    0x06 => {
+                        self.addressing_mode_zero_page_with_index_read_write(true, &Self::instruction_dec);
+                    },
                     0x08 => {
                         self.addressing_mode_implied_or_accumulator(&Self::instruction_cld);
                     },
@@ -886,6 +911,9 @@ impl Processor {
                     },
                     0x0D => {
                         self.addressing_mode_absolute_with_index_read(true, &Self::instruction_cmp);
+                    },
+                    0x0E => {
+                        self.addressing_mode_absolute_with_index_read_write(true, &Self::instruction_dec);
                     },
                     _ => {}
                 }
@@ -904,6 +932,9 @@ impl Processor {
                     0x05 => {
                         self.addressing_mode_zero_page_read(&Self::instruction_sbc);
                     },
+                    0x06 => {
+                        self.addressing_mode_zero_page_read_write(&Self::instruction_inc);
+                    },
                     0x08 => {
                         // INX increment X (2cycle, 1 byte)
                         match self.cycle {
@@ -912,8 +943,8 @@ impl Processor {
                             },
                             0x01 => {
                                 self.X = ((self.X as u16 + 1u16)%0x100) as u8;
-                                self.SR |= self.X & 0x80;
-                                self.SR |= if self.X == 0x0 {0x2} else {0x0};
+                                self.set_flag_7th_bit_nagetive(self.X);
+                                self.set_flag_1st_bit_zero(self.X);
                                 self.new_instruction = true;
                                 self.cycle = 0;
                             },
@@ -941,6 +972,9 @@ impl Processor {
                     0x0D => {
                         self.addressing_mode_absolute_read(&Self::instruction_sbc);
                     },
+                    0x0E => {
+                        self.addressing_mode_absolute_read_write(&Self::instruction_inc);
+                    },
                     _ => {}
                 }
             },
@@ -955,6 +989,9 @@ impl Processor {
                     0x05 => {
                         self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_sbc);
                     },
+                    0x06 => {
+                        self.addressing_mode_zero_page_with_index_read_write(true, &Self::instruction_inc);
+                    },
                     0x08 => {
                         self.addressing_mode_implied_or_accumulator(&Self::instruction_sed);
                     },
@@ -963,6 +1000,9 @@ impl Processor {
                     },
                     0x0D => {
                         self.addressing_mode_absolute_with_index_read(true, &Self::instruction_sbc);
+                    },
+                    0x0E => {
+                        self.addressing_mode_absolute_with_index_read_write(true, &Self::instruction_inc);
                     },
                     _ => {}
                 }
@@ -1177,8 +1217,8 @@ impl Processor {
 
     fn instruction_dey(&mut self) {
         self.Y -= 1;
-        self.set_flag_1st_bit_zero(self.X);
-        self.set_flag_7th_bit_nagetive(self.X);
+        self.set_flag_1st_bit_zero(self.Y);
+        self.set_flag_7th_bit_nagetive(self.Y);
     }
 
     fn instruction_clc(&mut self) {
@@ -1285,6 +1325,20 @@ impl Processor {
         } else {
             self.SR &= 0xFE;
         }
+        self.set_flag_7th_bit_nagetive(byte);
+        self.set_flag_1st_bit_zero(byte);
+        byte
+    }
+
+    fn instruction_dec(&mut self, byte: u8) -> u8 {
+        let byte = byte-1;
+        self.set_flag_7th_bit_nagetive(byte);
+        self.set_flag_1st_bit_zero(byte);
+        byte
+    }
+
+    fn instruction_inc(&mut self, byte: u8) -> u8 {
+        let byte = byte+1;
         self.set_flag_7th_bit_nagetive(byte);
         self.set_flag_1st_bit_zero(byte);
         byte
