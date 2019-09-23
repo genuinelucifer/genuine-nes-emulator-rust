@@ -633,8 +633,8 @@ impl Processor {
                             },
                             0x1 => {
                                 self.AC = self.X;
-                                self.SR |= self.AC & 0x80;
-                                self.SR |= if self.AC == 0x0 {0x2} else {0x0};
+                                self.set_flag_7th_bit_nagetive(self.AC);
+                                self.set_flag_1st_bit_zero(self.AC);
                                 self.reset_instruction();
                             },
                             _ => {}
@@ -676,6 +676,21 @@ impl Processor {
                     0x06 => {
                         // STX zero page Y, 4 cycle, 3 bytes
                         self.addressing_mode_zero_page_with_index_write(false, &Self::instruction_stx);
+                    },
+                    0x08 => {
+                        // TYA 2 cycle, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.AC = self.Y;
+                                self.set_flag_7th_bit_nagetive(self.AC);
+                                self.set_flag_1st_bit_zero(self.AC);
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
                     },
                     0x09 => {
                         //STA absolute Y, 5 cycle
@@ -722,8 +737,21 @@ impl Processor {
                     0x06 => {
                         self.addressing_mode_zero_page_read(&Self::instruction_ldx);
                     },
-                    0x07 => {},
-                    0x08 => {},
+                    0x08 => {
+                        // TAY 2 cycle, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.Y = self.AC;
+                                self.set_flag_7th_bit_nagetive(self.Y);
+                                self.set_flag_1st_bit_zero(self.Y);
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
+                    },
                     0x09 => {
                         // LDA #$x immediate, 2 cycle, 2 bytes
                         self.addressing_mode_immediate(&Self::instruction_lda);
@@ -781,6 +809,21 @@ impl Processor {
                     },
                     0x09 => {
                         self.addressing_mode_absolute_with_index_read(false, &Self::instruction_lda);
+                    },
+                    0x0A => {
+                        // TSX 2 cycle, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.X = self.SP;
+                                self.set_flag_7th_bit_nagetive(self.X);
+                                self.set_flag_1st_bit_zero(self.X);
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
                     },
                     0x0C => {
                         self.addressing_mode_absolute_with_index_read(true, &Self::instruction_ldy);
