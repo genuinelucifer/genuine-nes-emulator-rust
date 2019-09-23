@@ -171,39 +171,7 @@ impl Processor {
                 match nibble & 0x0F {
                     0x00 => {
                         // BPL change branch if N==0
-                        match self.cycle {
-                            0x0 => {
-                                self.cycle = 1;
-                            },
-                            0x1 => {
-                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
-                                self.PC += 1;
-                                self.cycle += 1;
-                                if self.SR & 0x80 > 0 {
-                                    self.reset_instruction();
-                                }
-                            },
-                            0x2 => {
-                                println!("PC1: argI16: {}", self.arg as i8);
-                                let high = (self.PC >> 8) as u8;
-                                let low = (self.PC & 0xFF) as u8;
-                                println!("low : {}", low as i8);
-                                println!("high: {}", (high as u16));
-                                println!("signed {}", self.arg as i8 + low as i8);
-                                //println!("high+low {}",((high as u16) <<8) |(low+(self.arg as u8)) as u16);
-                                self.PC = (high as u16)<<8 | (low as i8 + self.arg as i8) as u16;
-
-                                println!("PC2: argI16: {}", self.arg as i16);
-
-                                // TODO:: fix PC high byte
-                                self.cycle += 1;
-                                self.reset_instruction();
-                            },
-                            0x3 => {
-                                self.reset_instruction();
-                            }
-                            _ => {}
-                        }
+                        self.addressing_mode_relative(&Self::instruction_bpl);
                     },
                     0x01 => {
                         self.addressing_mode_indirect_y_read(&Self::instruction_or);
@@ -321,6 +289,10 @@ impl Processor {
             },
             0x30 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        // BME change branch if result was negative
+                        self.addressing_mode_relative(&Self::instruction_bmi);
+                    },
                     0x01 => {
                         self.addressing_mode_indirect_y_read(&Self::instruction_and);
                     },
@@ -384,6 +356,10 @@ impl Processor {
             },
             0x50 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        // BVC
+                        self.addressing_mode_relative(&Self::instruction_bvc);
+                    },
                     0x01 => {
                         self.addressing_mode_indirect_y_read(&Self::instruction_xor);
                     },
@@ -448,6 +424,10 @@ impl Processor {
             },
             0x70 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        // BVS
+                        self.addressing_mode_relative(&Self::instruction_bvs);
+                    },
                     0x01 => {
                         // ADC indirect Y 6 cycle, 2 bytes
                         self.addressing_mode_indirect_y_read(&Self::instruction_adc);
@@ -535,6 +515,10 @@ impl Processor {
             },
             0x90 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        // BCC
+                        self.addressing_mode_relative(&Self::instruction_bcc);
+                    },
                     0x01 => {
                         // STA indirect Y 6 cycles, 2 bytes
                         self.addressing_mode_indirect_y_write(&Self::instruction_sta);
@@ -634,6 +618,10 @@ impl Processor {
             },
             0xB0 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        // BCS
+                        self.addressing_mode_relative(&Self::instruction_bcs);
+                    },
                     0x01 => {
                         self.addressing_mode_indirect_y_read(&Self::instruction_lda);
                     },
@@ -697,39 +685,7 @@ impl Processor {
                 match nibble & 0x0F {
                     0x00 => {
                         // BNE change branch if result was not zero
-                        match self.cycle {
-                            0x0 => {
-                                self.cycle = 1;
-                            },
-                            0x1 => {
-                                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
-                                self.PC += 1;
-                                self.cycle += 1;
-                                if self.SR & 0x02 > 0 {
-                                    self.reset_instruction();
-                                }
-                            },
-                            0x2 => {
-                                println!("PC1: argI16: {}", self.arg as i8);
-                                let high = (self.PC >> 8) as u8;
-                                let low = (self.PC & 0xFF) as u8;
-                                println!("low : {}", low as i8);
-                                println!("high: {}", (high as u16));
-                                println!("signed {}", self.arg as i8 + low as i8);
-                                //println!("high+low {}",((high as u16) <<8) |(low+(self.arg as u8)) as u16);
-                                self.PC = (high as u16)<<8 | (low as i8 + self.arg as i8) as u16;
-
-                                println!("PC2: argI16: {}", self.arg as i16);
-
-                                // TODO:: fix PC high byte
-                                self.cycle += 1;
-                                self.reset_instruction();
-                            },
-                            0x3 => {
-                                self.reset_instruction();
-                            }
-                            _ => {}
-                        }
+                        self.addressing_mode_relative(&Self::instruction_bne);
                     },
                     0x01 => {
                         self.addressing_mode_indirect_y_read(&Self::instruction_cmp);
@@ -805,6 +761,9 @@ impl Processor {
             },
             0xF0 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        self.addressing_mode_relative(&Self::instruction_beq);
+                    },
                     0x01 => {
                         self.addressing_mode_indirect_y_read(&Self::instruction_sbc);
                     },
@@ -1033,6 +992,38 @@ impl Processor {
 
     fn instruction_clv(&mut self) {
         self.SR &= 0xBF;
+    }
+
+    fn instruction_bpl(&mut self) -> bool {
+        self.SR & 0x80 > 0
+    }
+
+    fn instruction_bmi(&mut self) -> bool {
+        self.SR & 0x80 == 0
+    }
+
+    fn instruction_bne(&mut self) -> bool {
+        self.SR & 0x02 > 0
+    }
+
+    fn instruction_bcc(&mut self) -> bool {
+        self.SR & 0x01 > 0
+    }
+
+    fn instruction_bcs(&mut self) -> bool {
+        self.SR & 0x01 == 0
+    }
+
+    fn instruction_bvc(&mut self) -> bool {
+        self.SR & 0x40 > 0
+    }
+
+    fn instruction_bvs(&mut self) -> bool {
+        self.SR & 0x40 == 0
+    }
+
+    fn instruction_beq(&mut self) -> bool {
+        self.SR & 0x02 == 0
     }
 
     /**
@@ -1537,6 +1528,43 @@ impl Processor {
                 instruction(self);
                 self.reset_instruction();
             },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_relative(&mut self, instruction: &Fn(&mut Self) -> bool) {
+        // BME change branch if result was negative
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+                if instruction(self) {
+                    self.reset_instruction();
+                }
+            },
+            0x2 => {
+                println!("PC1: argI16: {}", self.arg as i8);
+                let high = (self.PC >> 8) as u8;
+                let low = (self.PC & 0xFF) as u8;
+                println!("low : {}", low as i8);
+                println!("high: {}", (high as u16));
+                println!("signed {}", self.arg as i8 + low as i8);
+                //println!("high+low {}",((high as u16) <<8) |(low+(self.arg as u8)) as u16);
+                self.PC = (high as u16)<<8 | (low as i8 + self.arg as i8) as u16;
+
+                println!("PC2: argI16: {}", self.arg as i16);
+
+                // TODO:: fix PC high byte
+                self.cycle += 1;
+                self.reset_instruction();
+            },
+            0x3 => {
+                self.reset_instruction();
+            }
             _ => {}
         }
     }
