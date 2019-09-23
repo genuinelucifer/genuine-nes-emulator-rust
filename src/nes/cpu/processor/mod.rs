@@ -279,6 +279,26 @@ impl Processor {
                     0x06 => {
                         self.addressing_mode_zero_page_write(&Self::instruction_rol_memory);
                     },
+                    0x08 => {
+                        // PLP 4 cycles, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.SP += 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.SR = self.ram.get_instruction(self.SP as usize);
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
+                    },
                     0x09 => {
                         // AND with accumulator #immediate 2 cycles, 2 bytes
                         self.addressing_mode_immediate(&Self::instruction_and);
@@ -394,6 +414,26 @@ impl Processor {
                     0x05 => {
                         // ADC 3 cycle, 2 bytes
                         self.addressing_mode_zero_page_read(&Self::instruction_adc);
+                    },
+                    0x08 => {
+                        // PLA 4 cycles, 1 byte
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.SP += 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.AC = self.ram.get_instruction(self.SP as usize);
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
                     },
                     0x09 => {
                         // ADC immediate 2 cycle, 2 bytes
@@ -580,15 +620,15 @@ impl Processor {
                             }
                         }
                     },
-                    0x0B => {},
                     0x0C => {
                         self.addressing_mode_absolute_read(&Self::instruction_ldy);
                     },
-                    0x0D => {},
+                    0x0D => {
+                        self.addressing_mode_absolute_read(&Self::instruction_lda);
+                    },
                     0x0E => {
                         self.addressing_mode_absolute_read(&Self::instruction_ldx);
                     },
-                    0x0F => {},
                     _ => {},
                 }
             },
