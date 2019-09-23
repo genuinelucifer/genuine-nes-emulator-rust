@@ -319,6 +319,37 @@ impl Processor {
             },
             0x40 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        // RTI
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.SP += 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.SR = self.ram.get_instruction(self.SP as usize);
+                                self.SP += 1;
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                self.arg = self.ram.get_instruction(self.SP as usize) as u16;
+                                self.SP += 1;
+                                self.cycle += 1;
+                            },
+                            0x5 => {
+                                self.arg = (self.ram.get_instruction(self.SP as usize) as u16) << 8 | self.arg;
+                                self.PC = self.arg;
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
+                    },
                     0x01 => {
                         self.addressing_mode_indirect_x_read(&Self::instruction_xor);
                     },
@@ -383,6 +414,36 @@ impl Processor {
             },
             0x60 => {
                 match nibble & 0x0F {
+                    0x00 => {
+                        // RTS
+                        match self.cycle {
+                            0x0 => {
+                                self.cycle = 1;
+                            },
+                            0x1 => {
+                                self.cycle += 1;
+                            },
+                            0x2 => {
+                                self.SP += 1;
+                                self.cycle += 1;
+                            },
+                            0x3 => {
+                                self.arg = self.ram.get_instruction(self.SP as usize) as u16;
+                                self.SP += 1;
+                                self.cycle += 1;
+                            },
+                            0x4 => {
+                                self.arg = (self.ram.get_instruction(self.SP as usize) as u16) << 8 | self.arg;
+                                self.cycle += 1;
+                            },
+                            0x5 => {
+                                self.PC = self.arg;
+                                self.PC += 1;
+                                self.reset_instruction();
+                            },
+                            _ => {}
+                        }
+                    },
                     0x01 => {
                         // ADC indirect X 6 cycle, 2 bytes
                         self.addressing_mode_indirect_x_read(&Self::instruction_adc);
