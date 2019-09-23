@@ -212,6 +212,9 @@ impl Processor {
                         //OR with accumulator zeropage X 4 cycles, 2 bytes
                         self.addressing_mode_zero_page_with_index_read(true, &Self::instruction_or);
                     },
+                    0x06 => {
+                        self.addressing_mode_zero_page_with_index_read_write(true, &Self::instruction_asl_memory);
+                    },
                     0x08 => {
                         self.addressing_mode_implied_or_accumulator(&Self::instruction_clc);
                     },
@@ -222,6 +225,9 @@ impl Processor {
                     0x0D => {
                         //OR with accumulator absolute X 5 cycles, 3 bytes
                         self.addressing_mode_absolute_with_index_read(true, &Self::instruction_or);
+                    },
+                    0x0E => {
+                        self.addressing_mode_absolute_with_index_read_write(true, &Self::instruction_asl_memory);
                     },
                     _ => {}
                 }
@@ -1140,7 +1146,7 @@ impl Processor {
         }
     }
 
-    fn addressing_mode_zero_page_with_index_read_write(&mut self, is_x: bool, instruction: &Fn(&mut Self, u8)) {
+    fn addressing_mode_zero_page_with_index_read_write(&mut self, is_x: bool, instruction: &Fn(&mut Self, u8) -> u8) {
         match self.cycle {
             0x0 => {
                 self.cycle = 1;
@@ -1155,8 +1161,14 @@ impl Processor {
                 self.cycle += 1;
             },
             0x3 => {
-                let byte = self.ram.get_instruction(self.arg as usize);
-                instruction(self, byte);
+                self.cycle += 1;
+            },
+            0x4 => {
+                self.cycle += 1;
+            },
+            0x5 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
                 self.reset_instruction();
             },
             _ => {}
@@ -1286,6 +1298,40 @@ impl Processor {
             0x4 => {
                 let operand = self.ram.get_instruction(self.arg as usize);
                 instruction(self, operand);
+                self.reset_instruction();
+            },
+            _ => {}
+        }
+    }
+
+    fn addressing_mode_absolute_with_index_read_write(&mut self, is_x:bool, instruction: &Fn(&mut Self, u8) -> u8) {
+        match self.cycle {
+            0x0 => {
+                self.cycle = 1;
+            },
+            0x1 => {
+                self.arg = self.ram.get_instruction(self.PC as usize) as u16;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x2 => {
+                self.arg |= (self.ram.get_instruction(self.PC as usize) as u16)<<8;
+                self.PC += 1;
+                self.cycle += 1;
+            },
+            0x3 => {
+                self.arg += (if is_x {self.X} else {self.Y}) as u16;
+                self.cycle += 1;
+            },
+            0x4 => {
+                self.cycle += 1;
+            },
+            0x5 => {
+                self.cycle += 1;
+            },
+            0x6 => {
+                let byte = instruction(self, self.ram.get_instruction(self.arg as usize));
+                self.ram.set_address(byte, self.arg as usize);
                 self.reset_instruction();
             },
             _ => {}
