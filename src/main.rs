@@ -34,9 +34,9 @@ fn start() {
                             break;
                         }
                     }
-                    nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap()).unwrap().iter().for_each(|x|
-                        print!("{:#04X?}, ",x)
-                    );
+                    //nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap()).unwrap().iter().for_each(|x|
+                    //    print!("{:#04X?}, ",x)
+                    //);
                     println!();
                     println!("header constant:: {:?}", rom.get_header().constant_as_str());
                     println!("header prg size:: {:#x?}", rom.get_header().get_prg_rom_size());
