@@ -23,7 +23,12 @@ fn start() {
                     println!("loading game {:?} {:?}", line, &roms_with_idx[line-1].1.path().to_str().unwrap());
                     let rom_data = nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap());
                     let rom: nes::rom::RomV1 = nes::rom::Rom::new(&rom_data.unwrap());
-                    let mut processor = nes::cpu::processor::Processor::new(rom.get_rom_data());
+                    println!();
+                    println!("header constant:: {:?}", rom.get_header().constant_as_str());
+                    println!("header prg size:: {:#x?}", rom.get_header().get_prg_rom_size());
+                    println!("header chr size:: {:#x?}", rom.get_header().get_chr_rom_size());
+                    println!("header flags:: {:#x?}", rom.get_header().get_all_flag());
+                    let mut processor = nes::cpu::processor::Processor::new(rom.get_prg_data());
                     let mut i = 0;
                     loop {
                         processor.execute_next_instruction();
@@ -37,11 +42,7 @@ fn start() {
                     //nes::loader::load_rom(&roms_with_idx[line-1].1.path().to_str().unwrap()).unwrap().iter().for_each(|x|
                     //    print!("{:#04X?}, ",x)
                     //);
-                    println!();
-                    println!("header constant:: {:?}", rom.get_header().constant_as_str());
-                    println!("header prg size:: {:#x?}", rom.get_header().get_prg_rom_size());
-                    println!("header chr size:: {:#x?}", rom.get_header().get_chr_rom_size());
-                    println!("header flags:: {:#x?}", rom.get_header().get_all_flag());
+
                     Ok(())
                 },
                 Err(_e) => {

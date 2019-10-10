@@ -51,9 +51,9 @@ pub struct Processor {
 }
 
 impl Processor {
-    pub fn new(data: &Vec<u8>) -> Processor {
+    pub fn new(prg: &Vec<u8>) -> Processor {
         let mut memory = memory::Memory::new();
-        memory.load(data, 0x4020);
+        memory.load(prg, 0x8000);
         Processor {
             PC: 0x4020,
             AC: 0x00,
